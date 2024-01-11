@@ -59,13 +59,13 @@ def getGpHisInfo(gpCode,gpName,start_time,end_time):
             db = getDb()
             cursor = db.cursor()
             cursor.execute(
-                f"insert into gp_info_1 (market_time, gp_code,gp_name,latest_price,rise_fall_rang,rise_fall_amount,turnover,transaction_volume,amplitude,highest_price,minimum_price,today_open_price,turnover_rate) "
+                f"insert into gp_info (market_time, gp_code,gp_name,latest_price,rise_fall_rang,rise_fall_amount,turnover,transaction_volume,amplitude,highest_price,minimum_price,today_open_price,turnover_rate) "
                 f"value ('{_marketTimeNew}','{gpCode}','{gpName}',{_latest_price},{_rise_fall_rang},{_rise_fall_amount},{_turnover},{_transaction_volume},{_amplitude},{_highest_price},{_minimum_price},{_today_open_price},{_turnover_rate});")
             cursor.rowcount
             db.commit()
 class Thread1(threading.Thread):
     def run(self):
-        getGpCode('20231201', '20231210')
+        getGpCode('20240110', '20240110')
 
 class Thread2(threading.Thread):
     def run(self):
@@ -77,11 +77,11 @@ class Thread3(threading.Thread):
 
 def _main():
     t1 = Thread1()
-    t2 = Thread2()
-    t3 = Thread3()
+    # t2 = Thread2()
+    # t3 = Thread3()
     t1.start()
-    t2.start()
-    t3.start()
+    # t2.start()
+    # t3.start()
 
 
 

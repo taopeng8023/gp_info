@@ -16,6 +16,7 @@ def getDb():
 
 #获取当日gp信息
 def getCurrentGpInfo(currentDayStr):
+    print(currentDayStr)
     query = "SELECT gp_code,gp_name,turnover from gp_info WHERE market_time = %s"
     db = getDb()
     cursor = db.cursor()
@@ -41,4 +42,4 @@ def getGpMa5Info(gpCode,gpName,turnover,currentDayStr):
 
 
 
-getCurrentGpInfo(20240109)
+getCurrentGpInfo(20240111)

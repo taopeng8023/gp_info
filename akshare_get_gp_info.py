@@ -8,7 +8,7 @@ db = pymysql.Connect(
     host = 'localhost',
         port = 3306,  #端口号
         user = 'root',  #服务器上mysql的用户名，安装时填写确认的
-        password = '',  #服务器上mysql的密码，安装时填写确认的
+        password = '123456',  #服务器上mysql的密码，安装时填写确认的
         database = 'pandas_tushare'   #服务器上的数据库名之一，选择需要连接的那个数据库
         #charset = 'utf8'
     )
@@ -31,7 +31,8 @@ def getGpCode():
         _gp_code = _gpData['代码']
         _gp_name = _gpData['名称']
         _latest_price = _gpData['最新价']
-        if not np.isnan(_latest_price):
+        _equivalent_ratio = _gpData['量比']
+        if not np.isnan(_latest_price) and not np.isnan(_equivalent_ratio):
             print(_xuhao)
             _rise_fall_rang = _gpData['涨跌幅']
             _rise_fall_amount = _gpData['涨跌额']
@@ -42,7 +43,6 @@ def getGpCode():
             _minimum_price = _gpData['最低']
             _today_open_price = _gpData['今开']
             _yesterday_close_price = _gpData['昨收']
-            _equivalent_ratio = _gpData['量比']
             _turnover_rate = _gpData['换手率']
             _pe_ratio_movement = _gpData['市盈率-动态']
             _pe_ratio = _gpData['市净率']
