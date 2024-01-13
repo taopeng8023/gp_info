@@ -65,7 +65,7 @@ def getGpHisInfo(gpCode,gpName,start_time,end_time):
             db.commit()
 class Thread1(threading.Thread):
     def run(self):
-        getGpCode('20240110', '20240110')
+        getGpCode('20240112', '20240112')
 
 class Thread2(threading.Thread):
     def run(self):
