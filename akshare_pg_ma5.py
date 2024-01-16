@@ -42,4 +42,4 @@ def getGpMa5Info(gpCode,gpName,turnover,currentDayStr):
 
 
 
-getCurrentGpInfo(20240112)
+getCurrentGpInfo(20240115)
