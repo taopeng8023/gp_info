@@ -23,13 +23,13 @@ def scrape_stock_news(stock_symbol):
 
 # 3. 获取股票对应的财务数据信息
 def get_financial_data(stock_symbol):
-    financial_data = ak.stock_financial_report(stock_symbol)
+    financial_data = ak.stock_financial_report_sina(stock_symbol,symbol="资产负债表")
     return financial_data
 
 
 # 4. 获取股价走势信息
 def get_stock_price(stock_symbol):
-    stock_price = ak.stock_zh_a_minute(symbol=stock_symbol, period="1d")
+    stock_price = ak.stock_zh_a_minute(symbol=stock_symbol, period="30d")
     return stock_price
 
 
@@ -84,18 +84,18 @@ def analyze_stock(stock_symbol):
 stocks = get_all_stock_names()
 
 # 遍历所有股票
-for stock_symbol, stock_name in zip(stocks['stock_symbol'], stocks['stock_name']):
+for stock_symbol, stock_name in zip(stocks['code'], stocks['name']):
     # 逐个分析股票
     analyze_stock(stock_symbol)
 
 
 
-python 写一个程序，要求如下
-
-1，获取所有股票名称
-2，通过爬虫技术采集股票相关的新闻信息
-3，获取股票对应的财务数据信息
-4，获取股价走势信息
-5，通过股价信息计算KDJ指标
-6，通过股价信息计算boll指标
-7，通过综合分析新闻信息，财务数据信息，KDJ指标信息，boll指标信息得到适合投资的股票
+# python 写一个程序，要求如下
+#
+# 1，获取所有股票名称
+# 2，通过爬虫技术采集股票相关的新闻信息
+# 3，获取股票对应的财务数据信息
+# 4，获取股价走势信息
+# 5，通过股价信息计算KDJ指标
+# 6，通过股价信息计算boll指标
+# 7，通过综合分析新闻信息，财务数据信息，KDJ指标信息，boll指标信息得到适合投资的股票
