@@ -30,16 +30,16 @@ def getCurrentGpInfo(currentDayStr):
 
 
 def getGpMa5Info(gpCode,gpName,turnover,currentDayStr):
-    query = "SELECT gp_code,SUM(turnover) from gp_info WHERE gp_code = %s and market_time < %s ORDER BY id DESC LIMIT 5"
+    query = "SELECT SUM(turnover)/5 FROM (SELECT * FROM gp_info where market_time <= %s and gp_code = %s ORDER BY id DESC LIMIT 5) t"
     db = getDb()
     cursor = db.cursor()
     cursor.execute(query, (gpCode,currentDayStr))
     result = cursor.fetchall()
-    if result[0][1] is not None and turnover > float(result[0][1]) * 1.5:
+    if result[0][0] is not None and turnover > float(result[0][0]) * 1.5:
         print(gpCode,":",gpName)
     cursor.close()
     db.cursor()
 
 
 
-getCurrentGpInfo(20240115)
+getCurrentGpInfo(20240117)
