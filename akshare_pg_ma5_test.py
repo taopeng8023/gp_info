@@ -40,9 +40,13 @@ def __main__():
             print(stock_code,stock_name,last_trade['日期'], last_trade['成交量'], last_trade['MA5_Volume'],last_trade['MA5_Volume_Flag'])
 
 def test():
-   stock_data = get_A_stock_data("605366","20240101","20240116")
+   stock_data = get_A_stock_data("603099","20231201","20231229")
    stock_data = stock_data.sort_values(by='日期')
    stock_data['MA5_Volume'] = stock_data['成交量'].rolling(window=5).mean()
-   print(stock_data[['日期', '成交量', 'MA5_Volume']])
+   stock_data = stock_data.sort_values(by='日期')
+   # Calculate the 5-day Moving Average for the trading volume
+   stock_data['MA5_Volume'] = stock_data['成交量'].rolling(window=5).mean()
+   stock_data['MA5_Volume_Flag'] = stock_data['成交量'] > (stock_data['MA5_Volume'] * 1.5)
+   print(stock_data[['日期', '成交量', 'MA5_Volume','MA5_Volume_Flag']])
 
-__main__()
+test()
