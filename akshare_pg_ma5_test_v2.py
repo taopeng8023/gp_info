@@ -48,9 +48,10 @@ def test():
    stock_data['MA5_Volume'] = stock_data['成交量'].rolling(window=5).mean()
    stock_data['MA5_Volume_Flag'] = stock_data['成交量'] > (stock_data['MA5_Volume'] * 1.5)
    # print(stock_data[['日期', '成交量', 'MA5_Volume','MA5_Volume_Flag']])
-   calculate_kdj(stock_data, n=9)
-   print(stock_data[['日期', '成交量', 'MA5_Volume','MA5_Volume_Flag','K','D','J']])
+   calc_kdj(stock_data)
+   print(stock_data[['日期', '成交量', 'MA5_Volume','MA5_Volume_Flag','k','d','j']])
 
+#计算KDJ
 def calculate_kdj(data, n=9):
     high = data['最高']
     low = data['最低']
@@ -72,4 +73,41 @@ def calculate_kdj(data, n=9):
 
     return data
 
+# 在k线基础上计算KDF，并将结果存储在df上面(k,d,j)
+def calc_kdj(df):
+    low_list = df['最低'].rolling(9, min_periods=9).min()
+    low_list.fillna(value=df['最低'].expanding().min(), inplace=True)
+    high_list = df['最高'].rolling(9, min_periods=9).max()
+    high_list.fillna(value=df['最高'].expanding().max(), inplace=True)
+    rsv = (df['收盘'] - low_list) / (high_list - low_list) * 100
+    df['k'] = pd.DataFrame(rsv).ewm(com=2).mean()
+    df['d'] = df['k'].ewm(com=2).mean()
+    df['j'] = 3 * df['k'] - 2 * df['d']
+    df['kdj'] = 0
+    series = df['k']>df['d']
+    df.loc[series[series == True].index, 'kdj'] = 1
+    df.loc[series[(series == True) & (series.shift() == False)].index, 'kdjcross'] = 1
+    df.loc[series[(series == False) & (series.shift() == True)].index, 'kdjcross'] = -1
+    return df
+
 test()
+
+# 一、kdj公式：
+#
+# RSV=(CLOSE-LLV(LOW,N))/(HHV(HIGH,N)-LLV(LOW,N))*100;
+#
+# K:SMA(RSV,M1,1);
+#
+# D:SMA(K,M2,1);
+#
+# 首先rsv 计算方式 就是 （收盘-给定周期最低价）/(给定周期最高价 - 给定周期最低价) * 100
+#
+# K值计算 就是给定周期m1 加权移动平均值 目前权重1
+#
+# 转换一下就是：
+#
+# K = (RSV*1 + (M1 - 1) * K[-1]) / M1 (K[-1]上一根K线K值)
+#
+# 同理
+#
+# D = (K*1 + (M2 - 1) * D[-1]) / M2 (D[-1]上一根K线K值)

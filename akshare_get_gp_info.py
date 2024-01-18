@@ -8,7 +8,7 @@ db = pymysql.Connect(
     host = 'localhost',
         port = 3306,  #端口号
         user = 'root',  #服务器上mysql的用户名，安装时填写确认的
-        password = '123456',  #服务器上mysql的密码，安装时填写确认的
+        password = '',  #服务器上mysql的密码，安装时填写确认的
         database = 'pandas_tushare'   #服务器上的数据库名之一，选择需要连接的那个数据库
         #charset = 'utf8'
     )

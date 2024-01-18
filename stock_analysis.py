@@ -2,9 +2,6 @@ import akshare as ak
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-
 
 # 1. 获取所有股票名称
 def get_all_stock_names():
@@ -86,6 +83,7 @@ stocks = get_all_stock_names()
 # 遍历所有股票
 for stock_symbol, stock_name in zip(stocks['code'], stocks['name']):
     # 逐个分析股票
+    print(stock_name)
     analyze_stock(stock_symbol)
 
 
