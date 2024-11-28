@@ -35,8 +35,9 @@ def __main__():
         # Calculate the 5-day Moving Average for the trading volume
         stock_data['MA5_Volume'] = stock_data['成交量'].rolling(window=5).mean()
         stock_data['MA5_Volume_Flag'] = stock_data['成交量'] > (stock_data['MA5_Volume'] * 1.5)
+        calc_kdj(stock_data)
         last_trade = stock_data.iloc[-1]
-        if last_trade["MA5_Volume_Flag"]:
+        if last_trade["MA5_Volume_Flag"] and last_trade['kdj'] ==1 and last_trade['kdjcross'] == 1 and last_trade['k'] < 50 and last_trade['d'] < 50 and last_trade['j'] < 50:
             print(stock_code,stock_name,last_trade['日期'], last_trade['成交量'], last_trade['MA5_Volume'],last_trade['MA5_Volume_Flag'])
 
 def test():
@@ -50,28 +51,6 @@ def test():
    # print(stock_data[['日期', '成交量', 'MA5_Volume','MA5_Volume_Flag']])
    calc_kdj(stock_data)
    print(stock_data[['日期', '成交量', 'MA5_Volume','MA5_Volume_Flag','k','d','j']])
-
-#计算KDJ
-def calculate_kdj(data, n=9):
-    high = data['最高']
-    low = data['最低']
-    close = data['收盘']
-
-    rsv = (close - low.rolling(window=n).min()) / (high.rolling(window=n).max() - low.rolling(window=n).min()) * 100
-    k = pd.Series(0.0, index=data.index)
-    d = pd.Series(0.0, index=data.index)
-    j = pd.Series(0.0, index=data.index)
-
-    for i in range(n, len(data)):
-        k[i] = (2/3) * k[i-1] + (1/3) * rsv[i]
-        d[i] = (2/3) * d[i-1] + (1/3) * k[i]
-        j[i] = 3 * k[i] - 2 * d[i]
-
-    data['K'] = k
-    data['D'] = d
-    data['J'] = j
-
-    return data
 
 # 在k线基础上计算KDF，并将结果存储在df上面(k,d,j)
 def calc_kdj(df):
@@ -90,8 +69,9 @@ def calc_kdj(df):
     df.loc[series[(series == False) & (series.shift() == True)].index, 'kdjcross'] = -1
     return df
 
-test()
 
+# test()
+__main__()
 # 一、kdj公式：
 #
 # RSV=(CLOSE-LLV(LOW,N))/(HHV(HIGH,N)-LLV(LOW,N))*100;
