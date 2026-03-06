@@ -1,0 +1,354 @@
+“十三”智能选股 Agent 完整创建文档
+版本：v2.0
+最后更新：2026-03-05
+作者：量化策略团队
+
+1. 引言
+“十三”是一个专为短线交易者设计的智能选股 Agent，核心目标是在每个交易日下午 14:30，通过资金驱动 + 放量突破 + 趋势共振的逻辑，从全市场筛选出具备 3 个交易日内上涨潜力的股票。Agent 的名称寓意“简单直接，出手不凡”。
+
+本策略强调尾盘决策，充分利用收盘前 30 分钟的市场信号，捕捉主力资金动向和形态突破，为次日或随后几日的短线操作提供高胜率候选池。
+
+2. 整体架构
+“十三”采用模块化设计，数据流依次通过以下五个核心模块：
+
+数据采集模块：从东方财富获取资金流向、实时行情、K线历史、分时数据。
+
+资金前置筛选：只保留当日主力资金净流入排名前 100 的股票。
+
+基础条件初筛：剔除 ST、次新、无股性、趋势破位等不符合短线要求的标的。
+
+动态验证与评分：对初筛结果进行多维度打分（总分 100 分），包括资金强度、板块热度、放量倍数、分时形态、量价配合。
+
+输出模块：按总分降序输出前 10 名，附带关键指标和入选理由。
+
+工作流程图：
+
+text
+数据采集 ──> 资金前置筛选 ──> 基础条件初筛 ──> 动态验证评分 ──> 输出结果
+3. 数据源：东方财富
+所有数据均通过东方财富的公开接口获取，确保数据一致性和免费可用性。
+
+3.1 资金流向数据
+接口类型：HTTP 批量获取
+用途：获取当日主力资金净流入前 100 名股票，包含主力净流入、超大单净流入、大单净流入等。
+
+接口 URL：
+
+text
+https://push2.eastmoney.com/api/qt/clist/get?pn=1&pz=100&po=1&np=1&fltt=2&invt=2&fs=m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23&fields=f12,f14,f62,f184,f66,f69
+关键字段映射：
+
+字段	含义	用途
+f12	股票代码	标识
+f14	股票名称	标识
+f62	主力净流入（元）	资金排名依据
+f184	主力净流入占比（%）	资金强度评分
+f66	超大单净流入（元）	超大单占比计算
+f69	大单净流入（元）	-
+3.2 实时行情数据
+接口类型：HTTP 批量获取
+用途：获取资金流入前 100 名股票的最新价、涨跌幅、成交量、成交额、换手率、量比。
+
+接口 URL：
+
+text
+https://push2.eastmoney.com/api/qt/ulist.np/get?fltt=2&fields=f2,f3,f5,f6,f12,f14,f15,f16,f17,f18,f20,f21,f47,f48,f49,f168&secids={secids}
+关键字段映射：
+
+字段	含义	用途
+f2	最新价	价格判断
+f3	涨跌幅	当日表现
+f5	成交量（手）	放量倍数计算（需×100得股数）
+f6	成交额（元）	资金规模
+f12	股票代码	标识
+f14	股票名称	标识
+f47	换手率（%）	交投活跃度
+f168	量比	日内活跃度
+3.3 K线历史数据
+接口类型：HTTP 单只获取
+用途：计算 5 日均价、10 日均价、5 日均量。
+
+接口 URL：
+
+text
+https://push2his.eastmoney.com/api/qt/stock/kline/get?secid={secid}&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58&klt=101&fqt=1&end=20500101&lmt=20
+返回数据：最近 20 个交易日的日线数据，包含日期、开盘价、收盘价、最高价、最低价、成交量、成交额、振幅、涨跌幅、换手率等。
+
+3.4 分时数据（可选，用于形态判断）
+接口类型：HTTP 单只获取
+用途：分析当日分时走势，判断“强势横盘”或“回踩支撑”形态。
+
+接口 URL：
+
+text
+https://push2his.eastmoney.com/api/qt/stock/kline/get?secid={secid}&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58&klt=1&fqt=1&end=20500101&lmt=241
+返回数据：当日 1 分钟 K 线（共 241 条），包含时间、开盘、收盘、最高、最低、成交量。
+
+3.5 板块热度数据
+接口类型：HTTP 批量获取
+用途：获取当日及近 5 日板块涨幅排名。
+
+接口 URL（需抓包确认）：
+
+text
+https://push2.eastmoney.com/api/qt/clist/get?pn=1&pz=100&po=1&np=1&fltt=2&invt=2&fs=m:90+t:2&fields=f12,f14,f2,f3,f4,f5,f6,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f20,f21,f23,f24,f25,f26,f22,f33
+4. 选股逻辑
+4.1 资金前置筛选
+在每日 14:30 获取全市场主力资金净流入排名，取 前 100 名 股票作为候选池。
+
+目的：确保后续分析的股票已有主力资金真金白银介入。
+
+4.2 基础条件初筛
+对资金流入前 100 的股票，依次检查以下硬性条件（必须全部满足）：
+
+条件	说明
+非 ST、非退市	剔除风险股
+上市天数 ≥ 60 天	避免次新股剧烈波动
+流通市值 50亿 ~ 500亿	保证一定流动性，同时具备弹性
+近 10 个交易日内有过涨停	识别股性活跃的标的
+股价 > 5 日均线 > 10 日均线	确认短期上升趋势
+换手率 3% ~ 25%	排除僵尸股和过热股
+量比 0.5 ~ 3.0	保证日内活跃度适中
+当日成交量 > 5 日均量的 80%	排除极度缩量个股（下限保护）
+4.3 动态验证与评分
+对通过初筛的每只股票进行多维评分，总分 100 分。各维度权重及评分细则如下：
+
+4.3.1 资金强度（合计 30%）
+子维度	权重	评分细则
+资金流入排名	20%	前 10 名 → 20 分
+11~30 名 → 15 分
+31~100 名 → 10 分
+超大单占比	5%	>30% → 5 分
+20%~30% → 3 分
+<20% → 1 分
+资金持续性	5%	连续 3 日净流入 → 5 分
+连续 2 日净流入 → 3 分
+仅当日流入 → 0 分
+4.3.2 板块热度（15%）
+当日板块涨幅排名前 5 → 15 分
+
+近 5 日累计涨幅排名前 5（但当日不在前 5）→ 10 分
+
+其他 → 5 分
+
+4.3.3 放量强度（20%）
+当日成交量 / 5 日均量	得分
+> 2.0 倍	20 分
+1.5 ~ 2.0 倍	15 分
+1.2 ~ 1.5 倍	10 分
+0.8 ~ 1.2 倍	5 分
+< 0.8 倍	0 分（但初筛已排除）
+4.3.4 分时形态（25%）
+通过分析当日分时走势（截至 14:30）判断形态：
+
+强势横盘（股价全天在昨日收盘价之上，且始终在分时均线上方运行）→ 25 分
+
+回踩支撑（曾跌破分时均线但 14:30 前重新站上，且回踩未破 5 日线）→ 20 分
+
+一般走势（股价在分时均线附近反复，无明显强势特征）→ 10 分
+
+弱势（股价持续在分时均线下方运行）→ 0 分（但初筛已基本排除）
+
+形态识别算法：
+
+强势横盘：当前价格 ≥ 分时均线 × 1.001，且全天价格低于分时均线超过 0.5% 的持续时间小于 30 分钟，且当前价格 > 昨日收盘价。
+
+回踩支撑：当前价格 ≥ 分时均线 × 1.001，且日内最低价曾低于分时均线，且日内最低价未跌破 5 日均线，且从最低点反弹至当前价的涨幅 > 1%。
+
+一般走势：不符合上述两种，但当前价格在分时均线附近（偏离 < 1%）。
+
+4.3.5 量价配合（10%）
+换手率 8%~14% 且 量比 1.0~1.5 → 10 分
+
+换手率 5%~17% 或 量比 0.8~2.0（部分满足）→ 5 分
+
+其他 → 0 分
+
+4.4 综合排序与输出
+计算每只股票的总分（累加各维度得分）。
+
+按总分降序排序，取 前 10 名 作为最终推荐股票池。
+
+若存在并列，依次按资金流入排名、放量倍数、分时形态得分排序。
+
+5. 工作流伪代码
+python
+def run_daily_1430():
+    # 1. 数据采集
+    money_flow_top100 = fetch_money_flow_top100()          # 资金流入前100
+    realtime_data = fetch_realtime_quotes(money_flow_top100['code'])
+    kline_data = fetch_kline_batch(money_flow_top100['code'])
+    board_hot = fetch_board_hot()                          # 板块热度
+
+    # 2. 合并数据
+    stocks = merge_data(money_flow_top100, realtime_data, kline_data)
+
+    # 3. 基础条件初筛
+    candidates = []
+    for s in stocks:
+        if not (non_st(s) and listed_days>=60 and 50<=cap<=500):
+            continue
+        if not has_recent_limit_up(s, days=10):
+            continue
+        if not (s.price > s.ma5 > s.ma10):
+            continue
+        if not (3 <= s.turnover <= 25):
+            continue
+        if not (0.5 <= s.volume_ratio <= 3.0):
+            continue
+        if not (s.volume > 0.8 * s.vol_ma5):
+            continue
+        candidates.append(s)
+
+    # 4. 动态评分
+    results = []
+    for s in candidates:
+        score = 0
+
+        # 资金强度
+        if s.rank <= 10: score += 20
+        elif s.rank <= 30: score += 15
+        else: score += 10
+
+        if s.super_large_ratio > 0.3: score += 5
+        elif s.super_large_ratio > 0.2: score += 3
+        else: score += 1
+
+        if s.continuous_inflow_days >= 3: score += 5
+        elif s.continuous_inflow_days == 2: score += 3
+
+        # 板块热度
+        if s.board in board_hot['today']: score += 15
+        elif s.board in board_hot['last5']: score += 10
+        else: score += 5
+
+        # 放量强度
+        vol_ratio = s.volume / s.vol_ma5
+        if vol_ratio > 2.0: score += 20
+        elif vol_ratio > 1.5: score += 15
+        elif vol_ratio > 1.2: score += 10
+        else: score += 5
+
+        # 分时形态
+        pattern = analyze_intraday(s)
+        if pattern == 'strong_hold': score += 25
+        elif pattern == 'pullback_support': score += 20
+        else: score += 10
+
+        # 量价配合
+        if 8 <= s.turnover <=14 and 1.0 <= s.volume_ratio <=1.5: score += 10
+        elif 5 <= s.turnover <=17 or 0.8 <= s.volume_ratio <=2.0: score += 5
+
+        results.append((s, score))
+
+    # 5. 排序输出
+    results.sort(key=lambda x: x[1], reverse=True)
+    top10 = results[:10]
+    generate_report(top10)
+6. 部署与运行
+6.1 环境要求
+Python 3.8+
+
+依赖库：requests, pandas, numpy, websocket-client（可选），fake-useragent
+
+操作系统：Windows / Linux / macOS
+
+6.2 定时任务配置
+设置每日 14:30 自动运行：
+
+Windows：使用任务计划程序，创建基本任务，触发器设为每天 14:30，操作指向 Python 脚本。
+
+Linux：使用 crontab：
+
+text
+30 14 * * 1-5 /usr/bin/python3 /path/to/thirteen_agent.py >> /path/to/log.log 2>&1
+6.3 配置参数
+可在脚本开头定义可调参数（建议保存为 config.py）：
+
+python
+# config.py
+CONFIG = {
+    'money_flow_top_n': 100,
+    'min_market_cap': 50,          # 亿元
+    'max_market_cap': 500,
+    'min_turnover': 3,              # %
+    'max_turnover': 25,
+    'min_volume_ratio': 0.5,
+    'max_volume_ratio': 3.0,
+    'volume_ma_lower_bound': 0.8,
+    'volume_ma_high_score': 2.0,
+    'volume_ma_medium_score': 1.5,
+    'volume_ma_low_score': 1.2,
+    'output_top_n': 10,
+    'data_retry_times': 3,
+    'request_delay': 0.5,           # 秒
+}
+7. 输出说明
+最终生成的选股报告格式（JSON / CSV / 表格）：
+
+字段	示例	说明
+股票代码	601727.SH	上海证券交易所格式
+股票名称	上海电气	-
+现价	5.67	元
+涨跌幅	+10.0%	当日截至 14:30 的涨幅
+所属板块	电网设备	-
+板块热度	当日热点	当日/近期热点标识
+资金流入排名	3	当日主力净流入排名
+放量倍数	2.8	当日成交量 / 5 日均量
+分时形态	强势横盘	识别出的形态类型
+综合评分	94	总分（满分 100）
+入选理由	电网设备热点+巨量突破+资金流入前列	简短描述
+8. 注意事项与风险提示
+数据延迟：东方财富 HTTP 接口通常有 15 分钟延迟，因此 14:30 获取的数据实际反映 14:15 左右的情况。如需更低延迟，可考虑 WebSocket 方案。
+
+接口稳定性：财经网站接口可能随时变更，需定期检查字段映射。建议在数据获取模块中加入异常告警。
+
+风险控制：本策略仅为辅助工具，实际交易必须设置止损（如 -3% 或跌破 5 日线无条件离场）。短线交易风险极高，请勿投入过大仓位。
+
+参数优化：建议每月回测一次，根据市场风格（震荡市/趋势市）微调权重和阈值。
+
+人工复核：最终决策前，应人工查看分时图、K 线形态、当日消息面，避免踩中突发利空。
+
+流动性风险：虽然资金流入前 100 的股票通常流动性较好，但仍需警惕小市值股票的冲击成本。
+
+9. 附录
+9.1 字段映射速查表（基于当前东方财富接口）
+字段代码	含义	所属接口
+f2	最新价	实时行情
+f3	涨跌幅	实时行情
+f5	成交量（手）	实时行情
+f6	成交额（元）	实时行情
+f12	股票代码	所有接口
+f14	股票名称	所有接口
+f47	换手率	实时行情
+f62	主力净流入	资金流向
+f66	超大单净流入	资金流向
+f69	大单净流入	资金流向
+f72	中单净流入	资金流向
+f75	小单净流入	资金流向
+f168	量比	实时行情
+f184	主力净流入占比	资金流向
+9.2 分时形态识别代码示例（Python）
+python
+def analyze_intraday_pattern(stock_code, intraday_df, yesterday_close, ma5):
+    """
+    intraday_df: DataFrame with columns ['time', 'price', 'avg_price']
+    """
+    current_price = intraday_df.iloc[-1]['price']
+    current_avg = intraday_df.iloc[-1]['avg_price']
+    low_price = intraday_df['price'].min()
+
+    # 强势横盘
+    if (current_price >= current_avg * 1.001 and
+        current_price > yesterday_close and
+        (intraday_df['price'] < intraday_df['avg_price'] * 0.995).sum() < 30):
+        return 'strong_hold'
+
+    # 回踩支撑
+    if (current_price >= current_avg * 1.001 and
+        (intraday_df['price'] < intraday_df['avg_price']).any() and
+        low_price >= ma5 * 0.98 and  # 允许轻微跌破
+        (current_price - low_price) / low_price > 0.01):
+        return 'pullback_support'
+
+    return 'normal'
